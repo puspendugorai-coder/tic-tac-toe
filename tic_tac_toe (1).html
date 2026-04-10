@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tic Tac Toe — 2 Player Edition</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #05050f;
+    --panel:    #0e0e2a;
+    --panel2:   #111133;
+    --border:   #252575;
+    --cell:     #0c0c30;
+    --cell-h:   #181860;
+    --cell-t:   #0f0f38;
+    --cyan:     #00e5ff;
+    --cyan-dim: #0099bb;
+    --pink:     #ff4081;
+    --pink-dim: #aa2255;
+    --gold:     #ffd54f;
+    --gold-dim: #aa8800;
+    --green:    #00ff88;
+    --draw:     #ffab40;
+    --white:    #e8eaf6;
+    --dim:      #4a5090;
+    --restart:  #ff4500;
+    --restart-h:#ff6a00;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    overflow-x: hidden;
+  }
+
+  /* ── starfield canvas ── */
+  #starfield {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── nebulae ── */
+  .nebula {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    animation: breathe 8s ease-in-out infinite alternate;
+  }
+  .neb1 { width:160px; height:90px; top:15%; left:8%;  background:#080030; animation-delay:0s; }
+  .neb2 { width:120px; height:76px; top:40%; right:6%; background:#200010; animation-delay:-2.5s; }
+  .neb3 { width:180px; height:100px;bottom:20%;left:30%;background:#001020; animation-delay:-5s; }
+  @keyframes breathe {
+    from { transform: scale(1);   opacity:.7; }
+    to   { transform: scale(1.18);opacity:1; }
+  }
+
+  /* ── card ── */
+  .card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* ── header ── */
+  .header { text-align: center; padding-bottom: 0px; }
+  .header h1 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--cyan);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .header .sub {
+    font-size: .6rem;
+    color: var(--dim);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* ── panel box ── */
+  .box {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 16px;
+  }
+  .box2 { background: var(--panel2); }
+
+  /* ── score bar ── */
+  .scorebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .75rem;
+    font-weight: bold;
+    letter-spacing: .05em;
+  }
+  .sc-p1  { color: var(--cyan); }
+  .sc-drw { color: var(--gold); }
+  .sc-p2  { color: var(--pink); }
+
+  /* ── picker ── */
+  .picker-label {
+    font-size: .7rem;
+    font-weight: bold;
+    color: var(--cyan);
+    letter-spacing: .1em;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .picker-row {
+    display: flex;
+    justify-content: center;
+    gap: 36px;
+  }
+  .sym-btn {
+    width: 64px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; font-weight: bold; font-family: 'Courier New', monospace;
+    background: var(--cell);
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s;
+    border: 2px solid transparent;
+  }
+  .sym-btn.x-btn { color: var(--cyan); border-color: var(--cyan); }
+  .sym-btn.o-btn { color: var(--pink); border-color: var(--pink); }
+  .sym-btn:hover:not(.locked) { background: var(--cell-h); }
+  .sym-btn.locked { cursor: default; }
+  .sym-btn.chosen { border-color: var(--green) !important; color: var(--green) !important; }
+  .sym-btn.unchosen { color: var(--dim); border-color: var(--dim); cursor: default; }
+  .picker-hint {
+    font-size: .55rem;
+    color: var(--dim);
+    text-align: center;
+    margin-top: 6px;
+    letter-spacing: .08em;
+  }
+
+  /* ── board ── */
+  .board-wrap { padding: 7px; }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: var(--cell);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: bold; font-family: 'Courier New', monospace;
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s, border-color .12s, color .12s;
+    position: relative;
+  }
+  .cell:hover:not(.taken):not(.inactive) { background: var(--cell-h); }
+  .cell.taken   { background: var(--cell-t); cursor: default; }
+  .cell.inactive{ cursor: default; }
+  .cell.win-cell{
+    background: #071f07 !important;
+    border-color: var(--green) !important;
+    border-width: 3px !important;
+  }
+  .cell.x-sym { color: var(--cyan); border-color: var(--cyan); }
+  .cell.o-sym { color: var(--pink); border-color: var(--pink); }
+  .cell .preview { opacity: .35; }
+
+  /* ── status ── */
+  .status {
+    text-align: center;
+    font-size: .7rem;
+    font-weight: bold;
+    letter-spacing: .08em;
+    padding: 3px 0;
+    color: var(--gold);
+    min-height: 22px;
+    transition: color .3s;
+  }
+
+  /* ── result ── */
+  .result-label {
+    font-size: .55rem;
+    color: var(--dim);
+    letter-spacing: .2em;
+    text-align: center;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .result-text {
+    text-align: center;
+    font-size: .85rem;
+    font-weight: bold;
+    letter-spacing: .08em;
+    color: var(--dim);
+    min-height: 26px;
+    transition: color .3s;
+  }
+
+  /* ── restart ── */
+  .restart-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0 4px;
+  }
+  .restart-btn {
+    background: var(--restart);
+    color: var(--white);
+    font-family: 'Courier New', monospace;
+    font-size: .85rem;
+    font-weight: bold;
+    letter-spacing: .12em;
+    border: none;
+    border-radius: 4px;
+    padding: 9px 28px;
+    cursor: pointer;
+    outline: 3px solid transparent;
+    transition: background .2s, outline-color .4s;
+    text-transform: uppercase;
+  }
+  .restart-btn:hover { background: var(--restart-h); }
+  .restart-btn.pulse { animation: pulse-btn 1.5s ease-in-out infinite; }
+  @keyframes pulse-btn {
+    0%,100% { outline-color: var(--restart-h); }
+    50%      { outline-color: transparent; }
+  }
+
+  /* ── turn indicator strip ── */
+  .turn-strip {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .turn-pip {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background .3s, transform .3s;
+  }
+  .turn-pip.active { transform: scale(1.4); }
+  .turn-pip.p1 { background: var(--cyan); }
+  .turn-pip.p2 { background: var(--pink); }
+
+  /* ── win flash ── */
+  @keyframes win-flash {
+    0%,100% { opacity: 1; }
+    50%      { opacity: .35; }
+  }
+  .win-flash { animation: win-flash .55s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div class="nebula neb1"></div>
+<div class="nebula neb2"></div>
+<div class="nebula neb3"></div>
+
+<div class="card">
+
+  <div class="header">
+    <h1>✦ &nbsp;Tic &nbsp;Tac &nbsp;Toe&nbsp; ✦</h1>
+    <div class="sub">— &nbsp;2 &nbsp;P L A Y E R &nbsp;E D I T I O N &nbsp;—</div>
+  </div>
+
+  <!-- Score bar -->
+  <div class="box scorebar">
+    <span class="sc-p1"  id="sc-p1">P1 : 0</span>
+    <span class="sc-drw" id="sc-drw">DRAW : 0</span>
+    <span class="sc-p2"  id="sc-p2">P2 : 0</span>
+  </div>
+
+  <!-- Symbol picker -->
+  <div class="box box2" id="picker-box">
+    <div class="picker-label">PLAYER 1 — Pick your symbol to start</div>
+    <div class="picker-row">
+      <div class="sym-btn x-btn" id="btn-x" onclick="pickSymbol('X')">X</div>
+      <div class="sym-btn o-btn" id="btn-o" onclick="pickSymbol('O')">O</div>
+    </div>
+    <div class="picker-hint">Player 2 receives the other symbol automatically.</div>
+  </div>
+
+  <!-- Board -->
+  <div class="box board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <!-- Turn indicator -->
+  <div class="turn-strip">
+    <div class="turn-pip" id="pip-p1"></div>
+    <div class="turn-pip" id="pip-p2"></div>
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="status">← Pick a symbol above to begin</div>
+
+  <!-- Result -->
+  <div class="box box2">
+    <div class="result-label">R &nbsp;E &nbsp;S &nbsp;U &nbsp;L &nbsp;T</div>
+    <div class="result-text" id="result">─── awaiting outcome ───</div>
+  </div>
+
+  <!-- Restart -->
+  <div class="restart-wrap">
+    <button class="restart-btn pulse" id="restart-btn" onclick="restart()">⟳ &nbsp; R E S T A R T &nbsp; G A M E</button>
+  </div>
+
+</div>
+
+<script>
+// ── state ─────────────────────────────────────────────
+const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let board=Array(9).fill(''), p1='', p2='', current='', active=false;
+let scores={p1:0,p2:0,draw:0};
+let resultPulseId=null;
+
+// ── DOM refs ──────────────────────────────────────────
+const cells=[], statusEl=document.getElementById('status'),
+      resultEl=document.getElementById('result'),
+      scP1=document.getElementById('sc-p1'),
+      scP2=document.getElementById('sc-p2'),
+      scDr=document.getElementById('sc-drw'),
+      btnX=document.getElementById('btn-x'),
+      btnO=document.getElementById('btn-o'),
+      pipP1=document.getElementById('pip-p1'),
+      pipP2=document.getElementById('pip-p2');
+
+// ── build board ───────────────────────────────────────
+(function buildBoard(){
+  const bd=document.getElementById('board');
+  for(let i=0;i<9;i++){
+    const c=document.createElement('div');
+    c.className='cell inactive';
+    c.dataset.idx=i;
+    c.addEventListener('click',()=>clickCell(i));
+    c.addEventListener('mouseenter',()=>hoverCell(i,true));
+    c.addEventListener('mouseleave',()=>hoverCell(i,false));
+    bd.appendChild(c);
+    cells.push(c);
+  }
+})();
+
+// ── pick symbol ───────────────────────────────────────
+function pickSymbol(sym){
+  if(active||p1) return;
+  p1=sym; p2=sym==='X'?'O':'X'; current=sym; active=true;
+  [btnX,btnO].forEach(b=>b.classList.add('locked'));
+  const chosen=sym==='X'?btnX:btnO, unchosen=sym==='X'?btnO:btnX;
+  chosen.textContent=sym+' ✔'; chosen.classList.add('chosen');
+  unchosen.classList.add('unchosen');
+  cells.forEach(c=>c.classList.remove('inactive'));
+  updateStatus(); updateScores();
+}
+
+// ── hover preview ─────────────────────────────────────
+function hoverCell(i, entering){
+  if(!active||board[i]) return;
+  const c=cells[i];
+  if(entering){
+    c.innerHTML=`<span class="preview">${current}</span>`;
+    c.style.color=current===p1?'var(--cyan)':'var(--pink)';
+  } else {
+    c.textContent='';
+    c.style.color='';
+  }
+}
+
+// ── click ─────────────────────────────────────────────
+function clickCell(i){
+  if(!active||board[i]) return;
+  const sym=current;
+  board[i]=sym;
+  const c=cells[i];
+  c.textContent=sym;
+  c.style.color=sym===p1?'var(--cyan)':'var(--pink)';
+  c.style.borderColor=sym===p1?'var(--cyan)':'var(--pink)';
+  c.classList.add('taken');
+
+  const winner=checkWinner();
+  if(winner){
+    active=false;
+    highlightWin(winner.line);
+    const pname=winner.sym===p1?'Player 1':'Player 2';
+    scores[winner.sym===p1?'p1':'p2']++;
+    updateScores();
+    resultEl.textContent=`🏆  ${pname}  ( ${winner.sym} )  WINS !`;
+    startResultPulse('var(--green)','var(--gold)');
+    statusEl.textContent='Game Over — press Restart to play again';
+    statusEl.style.color='var(--dim)';
+    setPips('done');
+  } else if(isDraw()){
+    active=false;
+    scores.draw++;
+    updateScores();
+    resultEl.textContent="🤝  I T ' S   A   D R A W  !";
+    startResultPulse('var(--draw)','var(--gold-dim)');
+    statusEl.textContent='Game Over — press Restart to play again';
+    statusEl.style.color='var(--dim)';
+    setPips('done');
+  } else {
+    current=current===p1?p2:p1;
+    updateStatus();
+  }
+}
+
+// ── logic ─────────────────────────────────────────────
+function checkWinner(){
+  for(const [a,b,c] of WINS)
+    if(board[a]&&board[a]===board[b]&&board[a]===board[c])
+      return {sym:board[a],line:[a,b,c]};
+  return null;
+}
+function isDraw(){ return board.every(Boolean)&&!checkWinner(); }
+
+function highlightWin(line){
+  line.forEach(i=>{
+    cells[i].classList.add('win-cell','win-flash');
+  });
+}
+
+// ── UI updates ────────────────────────────────────────
+function updateStatus(){
+  if(!active) return;
+  const pname=current===p1?'Player 1':'Player 2';
+  const col=current===p1?'var(--cyan)':'var(--pink)';
+  statusEl.textContent=`⬤  ${pname}  ( ${current} )  —  your turn`;
+  statusEl.style.color=col;
+  setPips('active');
+}
+
+function updateScores(){
+  const s1=p1?`P1(${p1}) : ${scores.p1}`:`P1 : ${scores.p1}`;
+  const s2=p2?`P2(${p2}) : ${scores.p2}`:`P2 : ${scores.p2}`;
+  scP1.textContent=s1; scP2.textContent=s2;
+  scDr.textContent=`DRAW : ${scores.draw}`;
+}
+
+function setPips(mode){
+  pipP1.className='turn-pip'; pipP2.className='turn-pip';
+  if(mode==='active'){
+    if(current===p1){ pipP1.classList.add('p1','active'); pipP2.classList.add('p2'); }
+    else            { pipP2.classList.add('p2','active'); pipP1.classList.add('p1'); }
+  }
+}
+
+function startResultPulse(c1,c2){
+  stopResultPulse();
+  resultEl.classList.add('win-flash');
+}
+function stopResultPulse(){
+  resultEl.classList.remove('win-flash');
+  clearTimeout(resultPulseId);
+}
+
+// ── restart ───────────────────────────────────────────
+function restart(){
+  stopResultPulse();
+  board=Array(9).fill(''); p1=''; p2=''; current=''; active=false;
+  cells.forEach(c=>{
+    c.textContent=''; c.style.color=''; c.style.borderColor='';
+    c.className='cell inactive';
+  });
+  [btnX,btnO].forEach(b=>b.classList.remove('locked','chosen','unchosen'));
+  btnX.textContent='X'; btnO.textContent='O';
+  resultEl.textContent='─── awaiting outcome ───'; resultEl.style.color='var(--dim)';
+  statusEl.textContent='← Pick a symbol above to begin'; statusEl.style.color='var(--gold)';
+  pipP1.className='turn-pip'; pipP2.className='turn-pip';
+  updateScores();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── starfield ─────────────────────────────────────────
+(function stars(){
+  const cv=document.getElementById('starfield');
+  const ctx=cv.getContext('2d');
+  let W,H,pts=[];
+  function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+  function mkPt(){
+    return {x:Math.random()*W, y:Math.random()*H,
+            r:Math.random()*1.2+.3, dy:Math.random()*.45+.1,
+            dx:(Math.random()-.5)*.12,
+            br:Math.floor(Math.random()*130+80)};
+  }
+  function init(){ resize(); pts=Array.from({length:90},mkPt); }
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.dx; p.y+=p.dy;
+      if(p.y>H+4){ Object.assign(p,mkPt(),{y:-4}); }
+      const hex=p.br.toString(16).padStart(2,'0');
+      const blueHex=Math.min(p.br+60,255).toString(16).padStart(2,'0');
+      ctx.fillStyle=`#${hex}${hex}${blueHex}`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    });
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize',()=>{ resize(); });
+  init(); frame();
+})();
+</script>
+</body>
+</html>
