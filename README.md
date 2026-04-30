@@ -2,7 +2,7 @@
 
 > A sleek, space-themed Tic Tac Toe game built with pure HTML, CSS, and JavaScript. No frameworks, no dependencies — just one file.
 
-🔗 **Live Demo → [Play Now](https://puspendugorai-coder.github.io/tic-tac-toe/)**
+# **👉[Play Now](https://puspendugorai-coder.github.io/tic-tac-toe/)**
 
 ---
 
